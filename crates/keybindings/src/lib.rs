@@ -401,7 +401,7 @@ where
     fn repeat(&mut self, sequence: S, ctx: Option<C>);
 
     /// Start an interactive user dialog.
-    fn run_dialog(&mut self, dialog: Box<dyn Dialog<A>>);
+    fn run_dialog(&mut self, dialog: Box<dyn Dialog<A> + Send + Sync>);
 }
 
 /// A default [InputKeyClass] with no members.
@@ -1104,7 +1104,7 @@ pub struct ModalMachine<Key: InputKey, S: Step<Key>> {
     im: InputMachine<Key, S>,
     actions: VecDeque<(S::A, <S::State as InputState>::Output)>,
     sequences: HashMap<S::Sequence, SequenceTracker<S::A, <S::State as InputState>::Output>>,
-    dialogs: Vec<Box<dyn Dialog<S::A>>>,
+    dialogs: Vec<Box<dyn Dialog<S::A> + Send + Sync>>,
 
     /// Previously en
     key_trail: Vec<Key>,
@@ -1392,7 +1392,7 @@ where
         self.actions.append(&mut seq);
     }
 
-    fn run_dialog(&mut self, dialog: Box<dyn Dialog<S::A>>) {
+    fn run_dialog(&mut self, dialog: Box<dyn Dialog<S::A> + Send + Sync>) {
         self.dialogs.push(dialog);
     }
 }

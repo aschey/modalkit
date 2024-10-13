@@ -121,7 +121,7 @@ where
         delegate_bindings!(self, BindingMachine::repeat, rt, other)
     }
 
-    fn run_dialog(&mut self, dialog: Box<dyn Dialog<Action<I>>>) {
+    fn run_dialog(&mut self, dialog: Box<dyn Dialog<Action<I>> + Send + Sync>) {
         delegate_bindings!(self, BindingMachine::run_dialog, dialog)
     }
 }

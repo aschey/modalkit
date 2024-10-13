@@ -97,6 +97,7 @@ impl RightGutterInfo {
 }
 
 /// Persistent state for [TextBox].
+#[derive(Clone)]
 pub struct TextBoxState<I: ApplicationInfo = EmptyInfo> {
     buffer: SharedBuffer<I>,
     group_id: CursorGroupId,

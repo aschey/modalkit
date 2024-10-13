@@ -32,6 +32,7 @@ use super::{
 };
 
 /// Persistent state for rendering [CommandBar].
+#[derive(Clone)]
 pub struct CommandBarState<I: ApplicationInfo> {
     scrollback: ScrollbackState,
     prompt: String,
@@ -187,6 +188,7 @@ where
 }
 
 /// Widget for rendering a command bar.
+#[derive(Clone)]
 pub struct CommandBar<'a, I: ApplicationInfo> {
     focused: bool,
     message: Option<Span<'a>>,

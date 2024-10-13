@@ -206,7 +206,9 @@ where
     I: ApplicationInfo<ContentId = ReadLineId>,
 {
     /// Create a new instance.
-    pub fn new<B: BindingMachine<TerminalKey, Action<I>, RepeatType, EditContext> + 'static>(
+    pub fn new<
+        B: BindingMachine<TerminalKey, Action<I>, RepeatType, EditContext> + Send + Sync + 'static,
+    >(
         bindings: B,
     ) -> Result<Self, std::io::Error>
     where

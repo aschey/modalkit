@@ -7,7 +7,7 @@ use arboard::{Clipboard, Get, ImageData, Set};
 #[cfg(all(feature = "clipboard", target_os = "linux"))]
 use arboard::{GetExtLinux, LinuxClipboardKind, SetExtLinux};
 #[cfg(feature = "clipboard")]
-use std::cell::{RefCell, RefMut};
+use std::sync::{RwLock, RwLockWriteGuard};
 
 use crate::editing::history::HistoryList;
 use crate::editing::rope::EditRope;
@@ -138,7 +138,7 @@ pub struct RegisterStore {
     named: HashMap<char, RegisterCell>,
 
     #[cfg(feature = "clipboard")]
-    clipboard: Option<RefCell<Clipboard>>,
+    clipboard: Option<RwLock<Clipboard>>,
 }
 
 impl RegisterCell {
@@ -243,13 +243,13 @@ impl RegisterStore {
             named: HashMap::new(),
 
             #[cfg(feature = "clipboard")]
-            clipboard: Clipboard::new().ok().map(RefCell::new),
+            clipboard: Clipboard::new().ok().map(RwLock::new),
         }
     }
 
     #[cfg(feature = "clipboard")]
-    fn clipboard(&self) -> Option<RefMut<'_, Clipboard>> {
-        self.clipboard.as_ref().map(RefCell::borrow_mut)
+    fn clipboard(&self) -> Option<RwLockWriteGuard<'_, Clipboard>> {
+        self.clipboard.as_ref().map(|c| c.write().unwrap())
     }
 
     fn _push_deleted(&mut self, cell: RegisterCell) {

@@ -47,7 +47,7 @@ pub struct KeyManager<K, A, S>
 where
     K: InputKey,
 {
-    bindings: Box<dyn BindingMachine<K, A, S, EditContext>>,
+    bindings: Box<dyn BindingMachine<K, A, S, EditContext> + Send + Sync>,
     keystack: VecDeque<K>,
 
     recording: Option<(Register, bool)>,
@@ -62,7 +62,9 @@ where
     K: InputKey,
 {
     /// Create a new instance.
-    pub fn new<B: BindingMachine<K, A, S, EditContext> + 'static>(bindings: B) -> Self {
+    pub fn new<B: BindingMachine<K, A, S, EditContext> + Send + Sync + 'static>(
+        bindings: B,
+    ) -> Self {
         let bindings = Box::new(bindings);
 
         Self {
@@ -202,7 +204,7 @@ where
         self.bindings.repeat(seq, other)
     }
 
-    fn run_dialog(&mut self, dialog: Box<dyn Dialog<A>>) {
+    fn run_dialog(&mut self, dialog: Box<dyn Dialog<A> + Send + Sync>) {
         self.bindings.run_dialog(dialog)
     }
 }
