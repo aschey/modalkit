@@ -15,7 +15,7 @@ use crate::{
 #[macro_use]
 mod macros;
 
-mod keyparse;
+pub mod keyparse;
 
 pub mod emacs;
 pub mod mixed;

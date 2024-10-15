@@ -1,3 +1,5 @@
+//! keyparse
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -87,6 +89,7 @@ fn parse_key(input: &str) -> IResult<&str, (EdgeRepeat, CommonEdgeEvent)> {
     alt((parse_special, parse_count, parse_edgename, parse_key_simple))(input)
 }
 
+/// Parse
 pub fn parse(input: &str) -> IResult<&str, CommonEdgePath> {
     let (input, res) = many1(parse_key)(input)?;
     let (input, _) = eof(input)?;
