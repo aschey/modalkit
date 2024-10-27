@@ -30,7 +30,7 @@ use crate::editing::{
 
 use crate::util::{keycode_to_num, option_muladd_u32, option_muladd_usize};
 
-use super::{CharacterContext, CommonKeyClass};
+use super::{CharacterContext, CommonKeyClass, KeyContext};
 
 pub mod keybindings;
 
@@ -190,7 +190,7 @@ pub struct EmacsState<I: ApplicationInfo = EmptyInfo> {
     pub(crate) action: ActionContext,
     pub(crate) persist: PersistentContext,
     pub(self) ch: CharacterContext,
-
+    pub(self) key: KeyContext,
     _p: PhantomData<I>,
 }
 
@@ -200,7 +200,7 @@ impl<I: ApplicationInfo> Clone for EmacsState<I> {
             action: self.action.clone(),
             persist: self.persist.clone(),
             ch: self.ch.clone(),
-
+            key: self.key.clone(),
             _p: PhantomData,
         }
     }
@@ -229,7 +229,7 @@ impl<I: ApplicationInfo> InputState for EmacsState<I> {
             persist: self.persist.clone(),
             action: std::mem::take(&mut self.action),
             ch: std::mem::take(&mut self.ch),
-
+            key: std::mem::take(&mut self.key),
             _p: PhantomData,
         };
 
@@ -249,6 +249,7 @@ impl<I: ApplicationInfo> From<EmacsState<I>> for EditContext {
             .register(ctx.action.register.clone())
             .register_append(false)
             .search_incremental(ctx.persist.regexsearch_inc)
+            .matched_keys(ctx.key.keys)
             .build()
     }
 }
@@ -259,7 +260,7 @@ impl<I: ApplicationInfo> Default for EmacsState<I> {
             action: ActionContext::default(),
             persist: PersistentContext::default(),
             ch: CharacterContext::default(),
-
+            key: KeyContext::default(),
             _p: PhantomData,
         }
     }
@@ -270,7 +271,7 @@ impl<I: ApplicationInfo> InputKeyState<TerminalKey, CommonKeyClass> for EmacsSta
         &mut self,
         ev: &EdgeEvent<TerminalKey, CommonKeyClass>,
         ke: &TerminalKey,
-        _step_number: usize,
+        step_number: usize,
     ) {
         match ev {
             EdgeEvent::Key(_) | EdgeEvent::Fallthrough => {
@@ -287,12 +288,18 @@ impl<I: ApplicationInfo> InputKeyState<TerminalKey, CommonKeyClass> for EmacsSta
             // Track literals, codepoints, etc.
             EdgeEvent::Any => {
                 self.ch.any = Some(*ke);
+
+                if let Some(ch) = ke.get_literal_char() {
+                    self.key.update_string(ch, step_number);
+                }
             },
             EdgeEvent::Class(CommonKeyClass::Octal) => {
                 if let Some(n) = keycode_to_num(ke, 8) {
                     let new = option_muladd_u32(&self.ch.oct, 8, n);
 
                     self.ch.oct = Some(new);
+
+                    self.key.update_numeric(n, step_number);
                 }
             },
             EdgeEvent::Class(CommonKeyClass::Decimal) => {
@@ -300,6 +307,8 @@ impl<I: ApplicationInfo> InputKeyState<TerminalKey, CommonKeyClass> for EmacsSta
                     let new = option_muladd_u32(&self.ch.dec, 10, n);
 
                     self.ch.dec = Some(new);
+
+                    self.key.update_numeric(n, step_number);
                 }
             },
             EdgeEvent::Class(CommonKeyClass::Hexadecimal) => {
@@ -307,6 +316,8 @@ impl<I: ApplicationInfo> InputKeyState<TerminalKey, CommonKeyClass> for EmacsSta
                     let new = option_muladd_u32(&self.ch.hex, 16, n);
 
                     self.ch.hex = Some(new);
+
+                    self.key.update_numeric(n, step_number);
                 }
             },
             EdgeEvent::Class(CommonKeyClass::Digraph1) => {
