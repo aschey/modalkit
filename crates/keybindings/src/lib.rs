@@ -234,7 +234,7 @@ impl InputKey for char {
 #[allow(unused_variables)]
 pub trait InputKeyState<Key, C: InputKeyClass<Key>>: InputState {
     /// Update the context as needed after a `Key` has matched an [EdgeEvent].
-    fn event(&mut self, event: &EdgeEvent<Key, C>, key: &Key) {}
+    fn event(&mut self, event: &EdgeEvent<Key, C>, key: &Key, step_number: usize) {}
 
     /// Return a character to show at the current cursor position.
     fn get_cursor_indicator(&self) -> Option<char> {
@@ -494,7 +494,7 @@ impl IdGenerator {
 struct NodeId(u64);
 
 enum FollowResult<'a, Key, S: Step<Key>> {
-    Successor(&'a Edge<Key, S>),
+    Successor(&'a Edge<Key, S>, usize),
     NoSuccessor,
     Fallthrough(NodeId),
 }
@@ -599,6 +599,8 @@ struct Graph<Key: InputKey, S: Step<Key>> {
     modes: HashMap<S::M, NodeId>,
     nodes: HashMap<NodeId, Node<S::M, S>>,
     edges: HashMap<NodeId, HashMap<EdgeEvent<Key, S::Class>, Edge<Key, S>>>,
+    prev_node: Option<NodeId>,
+    step_number: usize,
 }
 
 impl<Key: InputKey, S: Step<Key>> Graph<Key, S> {
@@ -674,20 +676,22 @@ impl<Key: InputKey, S: Step<Key>> Graph<Key, S> {
         self.edges.get(&id).map(|es| !es.is_empty()).unwrap_or(false)
     }
 
-    fn follow_edge(&self, id: NodeId, ke: &Key) -> FollowResult<Key, S> {
+    fn follow_edge(&mut self, id: NodeId, ke: &Key) -> FollowResult<Key, S> {
+        self.update_step_number(id);
+
         if let Some(m) = self.edges.get(&id) {
             if let Some(e) = m.get(&EdgeEvent::Key(ke.clone())) {
-                return FollowResult::Successor(e);
+                return FollowResult::Successor(e, self.step_number);
             }
 
             for class in S::Class::memberships(ke).into_iter() {
                 if let Some(e) = m.get(&EdgeEvent::Class(class)) {
-                    return FollowResult::Successor(e);
+                    return FollowResult::Successor(e, self.step_number);
                 }
             }
 
             if let Some(e) = m.get(&EdgeEvent::Any) {
-                return FollowResult::Successor(e);
+                return FollowResult::Successor(e, self.step_number);
             }
 
             if let Some(e) = m.get(&EdgeEvent::Fallthrough) {
@@ -696,6 +700,17 @@ impl<Key: InputKey, S: Step<Key>> Graph<Key, S> {
         }
 
         return FollowResult::NoSuccessor;
+    }
+
+    fn update_step_number(&mut self, id: NodeId) {
+        if let Some(prev_node) = self.prev_node {
+            if id != prev_node {
+                self.prev_node = Some(id);
+                self.step_number += 1;
+            }
+        } else {
+            self.prev_node = Some(id);
+        }
     }
 }
 
@@ -706,6 +721,8 @@ impl<Key: InputKey, S: Step<Key>> Default for Graph<Key, S> {
             modes: HashMap::new(),
             nodes: HashMap::new(),
             edges: HashMap::new(),
+            prev_node: None,
+            step_number: 0,
         }
     }
 }
@@ -978,8 +995,8 @@ impl<Key: InputKey, S: Step<Key>> InputMachine<Key, S> {
     fn input(&mut self, ke: &Key, ctx: &mut S::State) -> InputResult<S> {
         loop {
             match self.graph.follow_edge(self.curr, ke) {
-                FollowResult::Successor(e) => {
-                    ctx.event(&e.evt, ke);
+                FollowResult::Successor(e, step_number) => {
+                    ctx.event(&e.evt, ke, step_number);
                     self.curr = e.end;
 
                     let node = self.graph.get_node(self.curr);
@@ -1740,7 +1757,7 @@ mod tests {
     }
 
     impl InputKeyState<TestKey, TestKeyClass> for TestContext {
-        fn event(&mut self, ev: &TestEdgeEvent, ke: &TestKey) {
+        fn event(&mut self, ev: &TestEdgeEvent, ke: &TestKey, _step_number: usize) {
             match ev {
                 EdgeEvent::Any => {
                     // Do nothing.

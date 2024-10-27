@@ -266,7 +266,12 @@ impl<I: ApplicationInfo> Default for EmacsState<I> {
 }
 
 impl<I: ApplicationInfo> InputKeyState<TerminalKey, CommonKeyClass> for EmacsState<I> {
-    fn event(&mut self, ev: &EdgeEvent<TerminalKey, CommonKeyClass>, ke: &TerminalKey) {
+    fn event(
+        &mut self,
+        ev: &EdgeEvent<TerminalKey, CommonKeyClass>,
+        ke: &TerminalKey,
+        _step_number: usize,
+    ) {
         match ev {
             EdgeEvent::Key(_) | EdgeEvent::Fallthrough => {
                 // Do nothing.

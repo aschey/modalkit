@@ -12,6 +12,38 @@ pub trait Resolve<T, R> {
     fn resolve(&self, t: &T) -> R;
 }
 
+/// Character matched by an input class.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MatchedKey {
+    /// Numeric character
+    Numeric(u32),
+    /// String character
+    String(String),
+}
+
+impl MatchedKey {
+    /// Retrieve the matched numeric character, returning [None] if there isn't a valid one.
+    pub fn try_get_numeric(&self) -> Option<u32> {
+        match self {
+            Self::Numeric(val) => Some(*val),
+            Self::String(val) => val.parse().ok(),
+        }
+    }
+
+    /// Retrieve the matched numeric character, panicking if there isn't a valid one.
+    pub fn get_numeric(&self) -> u32 {
+        self.try_get_numeric().expect("invalid numeric value")
+    }
+
+    /// Retrive the matched character as a string.
+    pub fn get_string(&self) -> String {
+        match self {
+            Self::Numeric(val) => val.to_string(),
+            Self::String(val) => val.to_owned(),
+        }
+    }
+}
+
 /// Context for editing operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EditContext {
@@ -30,6 +62,7 @@ pub struct EditContext {
     pub(crate) search_char: Option<(MoveDir1D, bool, Char)>,
     pub(crate) replace_char: Option<Char>,
     pub(crate) search_incremental: bool,
+    pub(crate) matched_keys: Vec<MatchedKey>,
 }
 
 impl Default for EditContext {
@@ -50,6 +83,7 @@ impl Default for EditContext {
             search_char: None,
             replace_char: None,
             search_incremental: false,
+            matched_keys: Vec::new(),
         }
     }
 }
@@ -104,6 +138,11 @@ impl EditContext {
     /// Whether to perform incremental searches while typing in the search bar.
     pub fn is_search_incremental(&self) -> bool {
         self.search_incremental
+    }
+
+    /// Get the list of keys that were matched by any input classes.
+    pub fn get_matched_keys(&self) -> &[MatchedKey] {
+        &self.matched_keys
     }
 }
 
@@ -264,6 +303,14 @@ impl EditContextBuilder {
     /// Defaults to [None].
     pub fn count(mut self, n: Option<usize>) -> Self {
         self.0.count = n;
+        self
+    }
+
+    /// Set the matched Keys.
+    ///
+    /// Defaults to [Vec::new()].
+    pub fn matched_keys(mut self, keys: Vec<MatchedKey>) -> Self {
+        self.0.matched_keys = keys;
         self
     }
 }

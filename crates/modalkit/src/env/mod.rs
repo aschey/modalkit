@@ -7,9 +7,11 @@
 use crossterm::event::KeyModifiers;
 
 use crate::{
+    editing::context::MatchedKey,
     key::TerminalKey,
     keybindings::{EdgeEvent, EdgePathPart, InputKey, InputKeyClass},
     prelude::Char,
+    util::option_muladd_u32,
 };
 
 #[macro_use]
@@ -182,6 +184,33 @@ impl CharacterContext {
 
     fn get_literal_string(&self) -> Option<String> {
         self.any.as_ref().map(ToString::to_string)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct KeyContext {
+    last: Option<MatchedKey>,
+    keys: Vec<MatchedKey>,
+    last_step_number: usize,
+}
+
+impl KeyContext {
+    fn update_numeric(&mut self, val: u32, step_number: usize) {
+        if step_number > self.last_step_number || self.keys.is_empty() {
+            self.keys.push(MatchedKey::Numeric(val));
+        } else if let Some(MatchedKey::Numeric(last)) = self.keys.last_mut() {
+            *last = option_muladd_u32(&Some(*last), 10, val)
+        }
+        self.last_step_number = step_number;
+    }
+
+    fn update_string(&mut self, ch: char, step_number: usize) {
+        if step_number > self.last_step_number || self.keys.is_empty() {
+            self.keys.push(MatchedKey::String(ch.to_string()));
+        } else if let Some(MatchedKey::String(s)) = self.keys.last_mut() {
+            s.push(ch);
+        }
+        self.last_step_number = step_number;
     }
 }
 
